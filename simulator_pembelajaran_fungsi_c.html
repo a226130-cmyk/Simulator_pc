@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulator Fungsi Pengaturcaraan - Kafe Siswa & Function Factory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        code, pre, .font-mono {
+            font-family: 'Fira Code', monospace;
+        }
+        .code-highlight {
+            background-color: rgba(234, 179, 8, 0.25);
+            border-left: 4px solid #eab308;
+            transition: all 0.2s ease-in-out;
+        }
+        .stack-frame-enter {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+        .stack-frame-exit {
+            animation: slideOut 0.3s ease-in forwards;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(20px); opacity: 0; }
+        }
+        .data-particle {
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .prediction-overlay {
+            backdrop-filter: blur(4px);
+            transition: all 0.3s ease-in-out;
+        }
+        .speech-bubble-tail::before {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 20px;
+            border-width: 8px 10px 8px 0;
+            border-style: solid;
+            border-color: transparent #1e293b transparent transparent;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+    <!-- Header Utama -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <span class="text-3xl">☕</span>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+                        Kafe Siswa: Simulator Fungsi C
+                    </h1>
+                    <p class="text-xs text-slate-400">Pembelajaran Interaktif Call Stack, Parameter & Return Value</p>
+                </div>
+            </div>
+
+            <!-- Dashboard Penjejakan Kajian & Mod Togol -->
+            <div class="flex items-center gap-4 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-700 text-xs">
+                <!-- Togol Mod Ramal Dahulu -->
+                <div class="flex items-center gap-2 border-r border-slate-700 pr-3">
+                    <span class="text-amber-300 font-semibold text-xs">🔮 Mod Ramal:</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="toggle-predict" onchange="togglePredictionMode()" class="sr-only peer" checked>
+                        <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                </div>
+                <div>
+                    <span class="text-slate-400 block">Kajian Elemen:</span>
+                    <span class="text-amber-400 font-semibold">Santivanez et al. (2026)</span>
+                </div>
+                <div class="border-l border-slate-700 pl-3">
+                    <span class="text-slate-400 block">Improvement Score (IS)</span>
+                    <span id="metric-is" class="text-emerald-400 font-bold text-sm">+0.0%</span>
+                </div>
+                <div class="border-l border-slate-700 pl-3">
+                    <span class="text-slate-400 block">Pengurangan Masa (IRT)</span>
+                    <span id="metric-irt" class="text-cyan-400 font-bold text-sm">0s</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto w-full p-4 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
+
+        <!-- Overlay Pop-up "Ramal Dahulu" -->
+        <div id="prediction-modal" class="hidden absolute inset-0 bg-slate-950/80 z-40 flex items-center justify-center p-4 rounded-xl prediction-overlay">
+            <div class="bg-slate-800 border-2 border-amber-500/80 p-6 rounded-2xl max-w-xl w-full shadow-2xl relative">
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="text-3xl">🔮</span>
+                    <div>
+                        <span class="text-[10px] font-bold text-amber-400 uppercase tracking-wider bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">Cabar Diri Anda</span>
+                        <h3 class="text-lg font-bold text-slate-100">Uji Ramalan Anda Sebelum Langkah Seterusnya!</h3>
+                    </div>
+                </div>
+
+                <p id="predict-question" class="text-sm text-slate-300 mb-4 bg-slate-900/60 p-3 rounded-lg border border-slate-700">
+                    <!-- Soalan dinamik disuntik dari JS -->
+                </p>
+
+                <!-- Pilihan Jawapan -->
+                <div id="predict-options" class="space-y-2 mb-4">
+                    <!-- Dinamik disuntik dari JS -->
+                </div>
+
+                <!-- Kotak Maklum Balas Positif/Mendidik -->
+                <div id="predict-feedback" class="hidden p-3 rounded-lg border text-xs leading-relaxed transition-all">
+                    <!-- Maklum balas disuntik dari JS -->
+                </div>
+
+                <div class="mt-4 flex justify-end">
+                    <button id="btn-continue" onclick="closePredictionModal()" disabled class="px-5 py-2 rounded-lg bg-slate-700 text-slate-400 cursor-not-allowed text-xs font-bold transition">
+                        Sila Pilih Jawapan
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto w-full p-4 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Kiri: Kod C & Control Panel (Lg: 5 columns) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            
+            <!-- Pemilih Aras Cabaran (Gamifikasi 'Function Factory') -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                    🎮 Mod Function Factory (Pilih Aras):
+                </label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setLevel('easy')" id="btn-easy" class="px-3 py-2 text-xs font-bold rounded-lg border border-emerald-500/50 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition">
+                        Easy (1 Param)
+                    </button>
+                    <button onclick="setLevel('intermediate')" id="btn-intermediate" class="px-3 py-2 text-xs font-bold rounded-lg border border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition">
+                        Intermediate (2 Param)
+                    </button>
+                    <button onclick="setLevel('hard')" id="btn-hard" class="px-3 py-2 text-xs font-bold rounded-lg border border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 transition">
+                        Hard (Diskaun/Cukai)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panel Input Parameter Awal -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 space-y-3">
+                <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                    <span>⚙️</span> Tetapkan Nilai Masukan Pesanan (Input):
+                </h3>
+                <div id="input-controls" class="grid grid-cols-2 gap-3 text-xs">
+                    <!-- Dinamik mengikut level -->
+                </div>
+            </div>
+
+            <!-- Panel Paparan Kod C -->
+            <div class="bg-slate-950 rounded-xl border border-slate-800 overflow-hidden shadow-inner flex-1 flex flex-col">
+                <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex justify-between items-center text-xs text-slate-400">
+                    <span class="font-mono">program_kafe.c</span>
+                    <span id="line-indicator" class="text-amber-400 font-semibold">Baris: -</span>
+                </div>
+                <div class="p-4 font-mono text-sm leading-relaxed overflow-x-auto flex-1 text-slate-300" id="code-display">
+                    <!-- Kod C disuntik secara dinamik oleh JS -->
+                </div>
+            </div>
+
+            <!-- Panel Kawalan Eksekusi (Langkah, Undur, Reset) -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex items-center justify-between gap-2">
+                <button onclick="prevStep()" id="btn-prev" disabled class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold flex items-center gap-1">
+                    ◀ Undur
+                </button>
+                <button onclick="resetSimulation()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-semibold flex items-center gap-1">
+                    🔄 Set Semula
+                </button>
+                <button onclick="nextStep()" id="btn-next" class="px-5 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 font-bold text-xs text-slate-950 shadow-lg shadow-orange-500/20 flex items-center gap-1">
+                    Langkah Seterusnya ▶
+                </button>
+            </div>
+        </section>
+
+        <!-- Kanan: Visualisasi Visual Metafora & Call Stack (Lg: 7 columns) -->
+        <section class="lg:col-span-7 flex flex-col gap-4">
+
+            <div class="bg-slate-800/90 p-4 rounded-xl border border-slate-700">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-3 flex items-center justify-between">
+                    <span>☕ Kak Mira & Visual Metafora Kafe</span>
+                    <span class="text-[10px] text-slate-400 font-normal">Panduan Langkah Demi Langkah</span>
+                </h3>
+
+                <!-- Kak Mira Avatar & Dialog Box -->
+                <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-slate-950/80 p-3.5 rounded-xl border border-slate-700 mb-4">
+                    <!-- SVG Avatar Kak Mira -->
+                    <div class="flex-shrink-0 flex flex-col items-center">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 p-0.5 shadow-lg relative">
+                            <svg class="w-full h-full rounded-full bg-slate-900" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Background Circle -->
+                                <circle cx="50" cy="50" r="48" fill="#0f172a"/>
+                                <!-- Hair Back -->
+                                <path d="M25 45 C25 25, 75 25, 75 45 C75 65, 70 80, 70 80 L30 80 C30 80, 25 65, 25 45 Z" fill="#331800"/>
+                                <!-- Face -->
+                                <ellipse cx="50" cy="48" rx="22" ry="24" fill="#fbcfe8"/>
+                                <!-- Hijab/Hair Frame -->
+                                <path d="M28 40 C28 25, 72 25, 72 40 C72 48, 68 45, 68 45 C68 32, 32 32, 32 45 C32 45, 28 48, 28 40 Z" fill="#ea580c"/>
+                                <!-- Eyes -->
+                                <circle cx="42" cy="46" r="3" fill="#1e293b"/>
+                                <circle cx="58" cy="46" r="3" fill="#1e293b"/>
+                                <circle cx="43" cy="45" r="1" fill="#ffffff"/>
+                                <circle cx="59" cy="45" r="1" fill="#ffffff"/>
+                                <!-- Smile -->
+                                <path d="M44 56 Q50 62 56 56" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                                <!-- Apron / Body -->
+                                <path d="M26 88 C26 72, 74 72, 74 88 L80 100 L20 100 Z" fill="#0284c7"/>
+                                <path d="M38 72 L62 72 L60 100 L40 100 Z" fill="#f59e0b"/>
+                                <!-- Small Badge -->
+                                <rect x="44" y="78" width="12" height="6" rx="1" fill="#ffffff"/>
+                            </svg>
+                        </div>
+                        <span class="text-[11px] font-bold text-amber-400 mt-1">Kak Mira</span>
+                        <span class="text-[9px] text-slate-400">Pengurus Kafe</span>
+                    </div>
+
+                    <!-- Speech Bubble Kak Mira -->
+                    <div class="relative flex-1 bg-slate-800 p-3 rounded-xl border border-slate-700 text-xs text-slate-200 leading-relaxed shadow">
+                        <div id="kak-mira-speech" class="transition-all duration-300">
+                            <!-- Disuntik secara dinamik oleh Javascript -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 relative">
+                    <!-- Pengurus (main) -->
+                    <div id="role-main" class="p-3 rounded-lg border-2 border-indigo-500/40 bg-indigo-950/20 text-center transition-all">
+                        <div class="text-2xl mb-1">👨‍💼</div>
+                        <div class="font-bold text-xs text-indigo-300">Pengurus Kafe</div>
+                        <div class="text-[10px] text-slate-400">Fungsi: <code class="text-indigo-400 font-bold">main()</code></div>
+                        <div id="manager-status" class="mt-2 text-[11px] bg-slate-900/80 p-1.5 rounded border border-slate-700 text-slate-300">
+                            Menyediakan Pesanan...
+                        </div>
+                    </div>
+
+                    <!-- Jurulatih / Juruwang (kiraHarga) -->
+                    <div id="role-cashier" class="p-3 rounded-lg border-2 border-slate-700 bg-slate-900/40 text-center transition-all opacity-50">
+                        <div class="text-2xl mb-1">👩‍🍳</div>
+                        <div class="font-bold text-xs text-emerald-300">Juruwang Kafe</div>
+                        <div class="text-[10px] text-slate-400">Fungsi: <code class="text-emerald-400 font-bold" id="func-name-label">kiraHarga()</code></div>
+                        <div id="cashier-status" class="mt-2 text-[11px] bg-slate-900/80 p-1.5 rounded border border-slate-700 text-slate-300">
+                            Menunggu Arahan...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Particle Animation Path (Pemindahan Slip / Salinan Data) -->
+                <div id="transfer-animation" class="mt-3 p-2 bg-slate-950/60 rounded-lg border border-slate-800 text-center text-xs text-amber-300 min-h-[36px] flex items-center justify-center font-mono">
+                    ℹ️ Tekan 'Langkah Seterusnya' untuk memulakan simulasi aliran memori.
+                </div>
+            </div>
+
+            <!-- Visual Memori Call Stack -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex-1 flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+                        <span>📚</span> Call Stack Memori (Pertimbunan Fungsi)
+                    </h3>
+                    <span class="text-[10px] bg-cyan-950 text-cyan-300 px-2 py-0.5 rounded border border-cyan-800">
+                        LIFO (Last In, First Out)
+                    </span>
+                </div>
+
+                <div class="flex-1 bg-slate-950 rounded-xl p-4 border border-slate-800 flex flex-col-reverse gap-3 overflow-y-auto min-h-[220px]" id="stack-container">
+                    <!-- Frame Stack dimasukkan dinamik dari bottom to top -->
+                </div>
+            </div>
+
+            <!-- AI Tutor Feedback Engine (Berdasarkan kajian Code Showdown) -->
+            <div class="bg-slate-800/90 p-4 rounded-xl border border-slate-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg">🤖</span>
+                    <h4 class="text-xs font-bold text-purple-300 uppercase tracking-wider">
+                        Enjin Maklum Balas AI & Skop Pemboleh Ubah
+                    </h4>
+                </div>
+                <div id="ai-feedback-box" class="text-xs bg-purple-950/30 border border-purple-800/50 p-3 rounded-lg text-purple-200 leading-relaxed">
+                    Sistem sedia. Setiap pemboleh ubah dalam fungsi berasingan wujud di ruang memori tempatan (local scope) yang berbeza.
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Footer Notis Kajian -->
+    <footer class="bg-slate-950 border-t border-slate-800 p-3 text-center text-xs text-slate-500">
+        Elemen Kajian Terintegrasi: <span class="text-slate-400 font-semibold">Mod Ramal Dahulu (Prediction-first), Adaptasi Cabaran Berperingkat & Metrik IRT/IS</span> daripada <i>Santivanez et al. (2026)</i>.
+    </footer>
+
+    <script>
+        // Configuration & State Variables
+        let currentLevel = 'easy'; // easy, intermediate, hard
+        let stepIndex = 0;
+        let startTime = Date.now();
+        let totalTimeSpent = 0;
+        let completedRuns = 0;
+        let predictionMode = true;
+        let pendingNextStep = false;
+
+        // Input Values
+        let inputs = {
+            kuantiti: 3,
+            hargaUnit: 5,
+            diskaun: 2
+        };
+
+        const levels = {
+            easy: {
+                title: 'Easy: Kira Harga Asas (1 Parameter)',
+                code: [
+                    '#include &lt;stdio.h&gt;',
+                    '',
+                    '// Juruwang (Fungsi Kira Harga)',
+                    'int kiraHarga(int kuantiti) {',
+                    '    int total = kuantiti * 5; // Harga RM5/unit',
+                    '    return total;',
+                    '}',
+                    '',
+                    '// Pengurus Kafe (Fungsi Utama)',
+                    'int main() {',
+                    '    int bilItem = ITEM_VAL;',
+                    '    int bayaran = kiraHarga(bilItem);',
+                    '    printf("Jumlah: %d", bayaran);',
+                    '    return 0;',
+                    '}'
+                ],
+                steps: [
+                    {
+                        line: 10,
+                        roleMain: 'Mula tugasan. Pengurus menyiapkan bilItem.',
+                        roleCashier: 'Menunggu...',
+                        transferMsg: 'Fungsi main() dipanggil ke Call Stack.',
+                        kakMira: 'Salam sejahtera! Saya Kak Mira. Pengurus Kafe baru sahaja membuka kafe dan mendaftarkan pesanan sebanyak ITEM_VAL unit makanan pada borang pesanan tempatan. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Inisialisasi pemboleh ubah tempatan "bilItem" di dalam skop fungsi main).</span>',
+                        stack: [
+                            { name: 'main() [Pengurus]', vars: { bilItem: 'ITEM_VAL' } }
+                        ],
+                        ai: 'Program bermula di fungsi main(). Pemboleh ubah "bilItem" diisytiharkan dalam skop tempatan main().'
+                    },
+                    {
+                        line: 11,
+                        roleMain: 'Pengurus menyalin nilai bilItem ke slip pesanan.',
+                        roleCashier: 'Menunggu...',
+                        transferMsg: 'Nilai disalin: ITEM_VAL ➔ parameter kuantiti',
+                        kakMira: 'Pengurus mengambil slip pesanan dan menyalin angka ITEM_VAL ke atas borang baharu untuk diserahkan kepada Juruwang. Pengurus mengekalkan slip asalnya! <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Penghantaran hujah secara Pass by Value di mana nilai disalin ke parameter "kuantiti").</span>',
+                        stack: [
+                            { name: 'main() [Pengurus]', vars: { bilItem: 'ITEM_VAL' } }
+                        ],
+                        ai: 'Nilai bilItem disalin melalui parameter. Ini dinamakan "Pass by Value". Salinan baru dibuat di memori!',
+                        prediction: {
+                            question: 'Apakah yang berlaku kepada pemboleh ubah <b>bilItem</b> dalam main() apabila nilainya dihantar ke fungsi <b>kiraHarga()</b>?',
+                            options: [
+                                { text: 'Nilai bilItem disalin sepenuhnya; bilItem dalam main() kekal utuh.', correct: true },
+                                { text: 'bilItem dipindahkan terus dan nilainya dalam main() menjadi kosong/kosongkan.', correct: false, misconception: 'Salah faham: Menganggap penghantaran parameter menghapus atau mengosongkan pemboleh ubah asal di fungsi pemanggil.' },
+                                { text: 'bilItem dan kuantiti kini berkongsi kotak memori yang persis sama.', correct: false, misconception: 'Salah faham: Mengelirukan Pass by Value (salinan) dengan Pass by Reference (penunjuk/pointer).' }
+                            ],
+                            explanation: 'Dalam C, penghantaran parameter lalai ialah "Pass by Value". Ini bermaksud satu salinan nilai dibuat di memori baru, manakala pemboleh ubah asal kekal selamat!'
+                        }
+                    },
+                    {
+                        line: 4,
+                        roleMain: 'Pengurus menunggu hasil pengiraan.',
+                        roleCashier: 'Juruwang menerima salinan parameter kuantiti.',
+                        transferMsg: 'Fungsi kiraHarga() dimasukkan ke atas Call Stack!',
+                        kakMira: 'Juruwang menerima salinan slip pesanan tersebut dan mengasingkannya di meja kerjanya sendiri untuk memulakan tugasan. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Penumpukan tindanan memori/frame baharu "kiraHarga" ke atas Call Stack).</span>',
+                        stack: [
+                            { name: 'kiraHarga() [Juruwang]', vars: { kuantiti: 'ITEM_VAL', total: '?' } },
+                            { name: 'main() [Pengurus]', vars: { bilItem: 'ITEM_VAL' } }
+                        ],
+                        ai: 'Frame baru kiraHarga() dibuka di atas Stack! "kuantiti" berada dalam skop khas juruwang, tidak boleh diakses terus oleh main().'
+                    },
+                    {
+                        line: 5,
+                        roleMain: 'Menunggu...',
+                        roleCashier: 'Juruwang mengira: ITEM_VAL × RM5.',
+                        transferMsg: 'Pengiraan dalam fungsi: total = CALC_TOTAL',
+                        kakMira: 'Juruwang kini mengabungkan kuantiti pesanan (ITEM_VAL) dengan harga RM5/unit untuk mendapatkan jumlah harga sebanyak RM CALC_TOTAL. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Perlaksanaan operasi aritmetik dan penetapan nilai pemboleh ubah tempatan "total").</span>',
+                        stack: [
+                            { name: 'kiraHarga() [Juruwang]', vars: { kuantiti: 'ITEM_VAL', total: 'CALC_TOTAL' } },
+                            { name: 'main() [Pengurus]', vars: { bilItem: 'ITEM_VAL' } }
+                        ],
+                        ai: 'Pemboleh ubah "total" dikira secara rasional di skop kiraHarga().'
+                    },
+                    {
+                        line: 6,
+                        roleMain: 'Pengurus sedia menerima jawapan.',
+                        roleCashier: 'Juruwang pulangkan nilai CALC_TOTAL.',
+                        transferMsg: 'Return value CALC_TOTAL dihantar kembali ke main()',
+                        kakMira: 'Juruwang menulis angka RM CALC_TOTAL di atas resit dan memulangkannya kembali kepada Pengurus Kafe. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Penyataan "return" mengembalikan nilai pengiraan kepada fungsi pemanggil).</span>',
+                        stack: [
+                            { name: 'kiraHarga() [Juruwang]', vars: { kuantiti: 'ITEM_VAL', total: 'CALC_TOTAL' }, returning: 'CALC_TOTAL' },
+                            { name: 'main() [Pengurus]', vars: { bilItem: 'ITEM_VAL' } }
+                        ],
+                        ai: 'Pernyataan return dipanggil. Nilai CALC_TOTAL dipulangkan kepada pemanggil (main).',
+                        prediction: {
+                            question: 'Apakah nilai yang dipulangkan oleh juruwang (<b>kiraHarga</b>) kepada pengurus (<b>main</b>)?',
+                            options: [
+                                { text: 'Nilai pengiraan total = RM CALC_TOTAL.', correct: true },
+                                { text: 'Nilai parameter kuantiti = ITEM_VAL sahaja.', correct: false, misconception: 'Salah faham: Menyangka fungsi memulangkan semula parameter asal, bukan hasil ungkapan return.' },
+                                { text: 'Pemboleh ubah total dipindahkan beserta dengan nama pemboleh ubahnya.', correct: false, misconception: 'Salah faham: Menyangka nama pemboleh ubah tempatan disalin ke main(), bukannya nilai sahaja.' }
+                            ],
+                            explanation: 'Pernyataan return hanya menghantar NILAI (hasil pengiraan CALC_TOTAL) balik ke titik pemanggilan, tanpa membawa nama pemboleh ubahnya!'
+                        }
+                    },
+                    {
+                        line: 12,
+                        roleMain: 'Pengurus menerima nilai CALC_TOTAL ke dalam bayaran.',
+                        roleCashier: 'Selesai tugasan.',
+                        transferMsg: 'kiraHarga() dimusnahkan daripada Call Stack!',
+                        kakMira: 'Pengurus menyimpan angka RM CALC_TOTAL ke dalam fail bayaran kafe. Meja kerja Juruwang kini dibersihkan sepenuhnya. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Nilai pemulangan disimpan ke dalam "bayaran" & pemusnahan frame fungsi / Stack Pop).</span>',
+                        stack: [
+                            { name: 'main() [Pengurus]', vars: { bilItem: 'ITEM_VAL', bayaran: 'CALC_TOTAL' } }
+                        ],
+                        ai: 'Frame kiraHarga() pop (dimusnahkan) dari stack memori! Skop tempatannya dipadam. Nilai kini selamat disimpan dalam "bayaran".'
+                    },
+                    {
+                        line: 13,
+                        roleMain: 'Pengurus cetak resit bayaran.',
+                        roleCashier: 'Berehat.',
+                        transferMsg: 'Program tamat dengan jayanya.',
+                        kakMira: 'Pengurus Kafe mencetak resit akhir untuk pelanggan. Keseluruhan proses pesanan Kafe Siswa selesai! <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Penamatan fungsi main() dan pemulangan status 0 kepada sistem pengendalian).</span>',
+                        stack: [
+                            { name: 'main() [Pengurus]', vars: { bilItem: 'ITEM_VAL', bayaran: 'CALC_TOTAL' } }
+                        ],
+                        ai: 'Proses selesai! Anda melihat bagaimana data mengalir secara masuk (parameter) dan keluar (return value).'
+                    }
+                ]
+            },
+            intermediate: {
+                title: 'Intermediate: Dua Parameter (Kuantiti & Harga Unit)',
+                code: [
+                    '#include &lt;stdio.h&gt;',
+                    '',
+                    'int kiraJumlah(int qty, int harga) {',
+                    '    int hasil = qty * harga;',
+                    '    return hasil;',
+                    '}',
+                    '',
+                    'int main() {',
+                    '    int q = ITEM_VAL, h = PRICE_VAL;',
+                    '    int totalBayar = kiraJumlah(q, h);',
+                    '    printf("Total: %d", totalBayar);',
+                    '    return 0;',
+                    '}'
+                ],
+                steps: [
+                    {
+                        line: 9,
+                        roleMain: 'Pengurus sediakan pemboleh ubah q dan h.',
+                        roleCashier: 'Menunggu...',
+                        transferMsg: 'main() dimuatkan ke Call Stack.',
+                        kakMira: 'Pengurus Kafe menulis kuantiti (q = ITEM_VAL) dan harga seunit (h = PRICE_VAL) pada borang catatannya. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Pengisytiharan dua pemboleh ubah tempatan "q" dan "h" dalam skop main).</span>',
+                        stack: [
+                            { name: 'main() [Pengurus]', vars: { q: 'ITEM_VAL', h: 'PRICE_VAL' } }
+                        ],
+                        ai: 'Dua pemboleh ubah dimasukkan dalam skop main().'
+                    },
+                    {
+                        line: 10,
+                        roleMain: 'Pengurus menyalin (q, h) ke parameter (qty, harga).',
+                        roleCashier: 'Menunggu...',
+                        transferMsg: 'Salinan (ITEM_VAL, PRICE_VAL) dihantar!',
+                        kakMira: 'Pengurus menyalin nilai q dan h ke atas slip arahan mengikut susunan persis untuk diserahkan kepada Juruwang. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Pemindahan berbilang hujah mengikut kedudukan/posisi parameter).</span>',
+                        stack: [
+                            { name: 'main() [Pengurus]', vars: { q: 'ITEM_VAL', h: 'PRICE_VAL' } }
+                        ],
+                        ai: 'Susunan pemindahan parameter adalah mengikut kedudukan: q -> qty, h -> harga.',
+                        prediction: {
+                            question: 'Semasa memanggil <b>kiraJumlah(q, h)</b>, bagaimanakah nilai disepadankan kepada <b>(qty, harga)</b>?',
+                            options: [
+                                { text: 'Berdasarkan kedudukan: q (pertama) dimasukkan ke qty, h (kedua) ke harga.', correct: true },
+                                { text: 'Berdasarkan abjad: C memadankan pemboleh ubah secara automatik ikut nama.', correct: false, misconception: 'Salah faham: Menyangka pengaturcaraan mengenali perkaitan nama, bukannya posisi hujah.' },
+                                { text: 'Kedua-dua nilai dicampur menjadi satu tatasusunan (array).', correct: false, misconception: 'Salah faham: Kekeliruan tentang cara parameter dipisahkan dalam memori.' }
+                            ],
+                            explanation: 'Dalam bahasa C, parameter disepadankan mengikut kedudukan (order/position). Hujah pertama sentiasa menyalin nilai ke parameter pertama!'
+                        }
+                    },
+                    {
+                        line: 3,
+                        roleMain: 'Menunggu...',
+                        roleCashier: 'Juruwang terima qty=ITEM_VAL dan harga=PRICE_VAL.',
+                        transferMsg: 'kiraJumlah() ditumpuk ke atas Stack!',
+                        kakMira: 'Juruwang menerima slip dan mendaftarkannya pada ruang kerja tempatannya sebagai qty=ITEM_VAL dan harga=PRICE_VAL. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Pembukaan frame fungsi "kiraJumlah" pada Call Stack).</span>',
+                        stack: [
+                            { name: 'kiraJumlah() [Juruwang]', vars: { qty: 'ITEM_VAL', harga: 'PRICE_VAL', hasil: '?' } },
+                            { name: 'main() [Pengurus]', vars: { q: 'ITEM_VAL', h: 'PRICE_VAL' } }
+                        ],
+                        ai: 'Perhatikan nama pemboleh ubah berbeza (q vs qty), tetapi nilainya disalin sempurna!'
+                    },
+                    {
+                        line: 4,
+                        roleMain: 'Menunggu...',
+                        roleCashier: 'Mengira hasil = qty * harga.',
+                        transferMsg: 'hasil = CALC_TOTAL',
+                        kakMira: 'Juruwang mendarabkan qty dan harga untuk mendapatkan hasil bernilai RM CALC_TOTAL. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Operasi darab disimpan dalam pemboleh ubah tempatan "hasil").</span>',
+                        stack: [
+                            { name: 'kiraJumlah() [Juruwang]', vars: { qty: 'ITEM_VAL', harga: 'PRICE_VAL', hasil: 'CALC_TOTAL' } },
+                            { name: 'main() [Pengurus]', vars: { q: 'ITEM_VAL', h: 'PRICE_VAL' } }
+                        ],
+                        ai: 'Pengiraan dalam skop tempatan kiraJumlah().'
+                    },
+                    {
+                        line: 5,
+                        roleMain: 'Pengurus sedia menerima.',
+                        roleCashier: 'Memulangkan nilai hasil.',
+                        transferMsg: 'Pulangkan CALC_TOTAL ke main()',
+                        kakMira: 'Juruwang memulangkan nombor hasil RM CALC_TOTAL kepada Pengurus Kafe. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Penyataan "return" menyerahkan nilai integer).</span>',
+                        stack: [
+                            { name: 'kiraJumlah() [Juruwang]', vars: { qty: 'ITEM_VAL', harga: 'PRICE_VAL', hasil: 'CALC_TOTAL' }, returning: 'CALC_TOTAL' },
+                            { name: 'main() [Pengurus]', vars: { q: 'ITEM_VAL', h: 'PRICE_VAL' } }
+                        ],
+                        ai: 'Return value dipulangkan semula.'
+                    },
+                    {
+                        line: 10,
+                        roleMain: 'Pengurus simpan jawapan dalam totalBayar.',
+                        roleCashier: 'Selesai.',
+                        transferMsg: 'kiraJumlah() dikeluarkan dari Stack.',
+                        kakMira: 'Pengurus menyimpan jawapan dalam totalBayar manakala ruang kerja Juruwang dipadamkan. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Nilai ditetapkan ke "totalBayar" dan frame fungsi dinyah-tindan / Stack Pop).</span>',
+                        stack: [
+                            { name: 'main() [Pengurus]', vars: { q: 'ITEM_VAL', h: 'PRICE_VAL', totalBayar: 'CALC_TOTAL' } }
+                        ],
+                        ai: 'Memori kiraJumlah() dibebaskan.'
+                    }
+                ]
+            },
+            hard: {
+                title: 'Hard: Pemprosesan Diskaun Kafe (Logik Kompleks)',
+                code: [
+                    '#include &lt;stdio.h&gt;',
+                    '',
+                    'int kiraBersih(int qty, int harga, int diskaun) {',
+                    '    int kotor = qty * harga;',
+                    '    int bersih = kotor - diskaun;',
+                    '    return bersih;',
+                    '}',
+                    '',
+                    'int main() {',
+                    '    int k = ITEM_VAL, h = PRICE_VAL, d = DISC_VAL;',
+                    '    int akhir = kiraBersih(k, h, d);',
+                    '    printf("Akhir: %d", akhir);',
+                    '    return 0;',
+                    '}'
+                ],
+                steps: [
+                    {
+                        line: 10,
+                        roleMain: 'Pengurus sediakan k, h, d.',
+                        roleCashier: 'Menunggu...',
+                        transferMsg: 'Inisialisasi pemboleh ubah main()',
+                        kakMira: 'Pengurus memasukkan 3 maklumat penting: kuantiti (k), harga (h), dan diskaun khas (d). <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Pengisytiharan 3 pemboleh ubah tempatan di main).</span>',
+                        stack: [
+                            { name: 'main() [Pengurus]', vars: { k: 'ITEM_VAL', h: 'PRICE_VAL', d: 'DISC_VAL' } }
+                        ],
+                        ai: 'Main menyediakan 3 parameter input.'
+                    },
+                    {
+                        line: 11,
+                        roleMain: 'Hantar 3 salinan nilai ke juruwang.',
+                        roleCashier: 'Terima k, h, d.',
+                        transferMsg: 'Penghantaran 3 parameter berbilang.',
+                        kakMira: 'Pengurus menyalin ketiga-tiga nilai ini ke atas slip tugasan Juruwang. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Penghantaran 3 hujah berbilang ke fungsi pemanggil).</span>',
+                        stack: [
+                            { name: 'main() [Pengurus]', vars: { k: 'ITEM_VAL', h: 'PRICE_VAL', d: 'DISC_VAL' } }
+                        ],
+                        ai: 'Setiap parameter disalin mengikut susunan persis dalam pengisytiharan.'
+                    },
+                    {
+                        line: 3,
+                        roleMain: 'Menunggu...',
+                        roleCashier: 'Terima qty, harga, diskaun.',
+                        transferMsg: 'kiraBersih() dimuatkan ke top Stack',
+                        kakMira: 'Juruwang membuka fail tugasan kiraBersih dan menyalin parameter qty, harga, dan diskaun. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Pembentukan Stack Frame "kiraBersih").</span>',
+                        stack: [
+                            { name: 'kiraBersih() [Juruwang]', vars: { qty: 'ITEM_VAL', harga: 'PRICE_VAL', diskaun: 'DISC_VAL', kotor: '?', bersih: '?' } },
+                            { name: 'main() [Pengurus]', vars: { k: 'ITEM_VAL', h: 'PRICE_VAL', d: 'DISC_VAL' } }
+                        ],
+                        ai: 'Skop tempatan kini mempunyai 5 pemboleh ubah tempatan di frame kiraBersih().'
+                    },
+                    {
+                        line: 4,
+                        roleMain: 'Menunggu...',
+                        roleCashier: 'Kira harga kotor = qty * harga.',
+                        transferMsg: 'kotor = CALC_GROSS',
+                        kakMira: 'Juruwang mengira harga kasar/kotor tanpa diskaun (RM CALC_GROSS). <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Penetapan pemboleh ubah tempatan "kotor").</span>',
+                        stack: [
+                            { name: 'kiraBersih() [Juruwang]', vars: { qty: 'ITEM_VAL', harga: 'PRICE_VAL', diskaun: 'DISC_VAL', kotor: 'CALC_GROSS', bersih: '?' } },
+                            { name: 'main() [Pengurus]', vars: { k: 'ITEM_VAL', h: 'PRICE_VAL', d: 'DISC_VAL' } }
+                        ],
+                        ai: 'Pengiraan harga asal sebelum potong diskaun.'
+                    },
+                    {
+                        line: 5,
+                        roleMain: 'Menunggu...',
+                        roleCashier: 'Kira harga bersih = kotor - diskaun.',
+                        transferMsg: 'bersih = CALC_NET',
+                        kakMira: 'Juruwang menolak diskaun daripada harga kotor untuk mendapatkan bayaran bersih RM CALC_NET. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Penolakan aritmetik disimpan ke "bersih").</span>',
+                        stack: [
+                            { name: 'kiraBersih() [Juruwang]', vars: { qty: 'ITEM_VAL', harga: 'PRICE_VAL', diskaun: 'DISC_VAL', kotor: 'CALC_GROSS', bersih: 'CALC_NET' } },
+                            { name: 'main() [Pengurus]', vars: { k: 'ITEM_VAL', h: 'PRICE_VAL', d: 'DISC_VAL' } }
+                        ],
+                        ai: 'Penolakan diskaun berlaku di tempatan.'
+                    },
+                    {
+                        line: 6,
+                        roleMain: 'Sedia menerima nilai pulangan.',
+                        roleCashier: 'Pulangkan nilai bersih.',
+                        transferMsg: 'Return CALC_NET ➔ main()',
+                        kakMira: 'Juruwang memulangkan angka bersih RM CALC_NET kembali kepada Pengurus Kafe. <span class="text-amber-300 block mt-1">(Penjelasan Teknikal: Pengembalian nilai menerusi penyataan return).</span>',
+                        stack: [
+                            { name: 'kiraBersih() [Juruwang]', vars: { qty: 'ITEM_VAL', harga: 'PRICE_VAL', diskaun: 'DISC_VAL', kotor: 'CALC_GROSS', bersih: 'CALC_NET' }, returning: 'CALC_NET' },
+                            { name: 'main() [Pengurus]', vars: { k: 'ITEM_VAL', h: 'PRICE_VAL', d: 'DISC_VAL' } }
+                        ],
+                        ai: 'Nilai bersih dipulangkan.',
+                        prediction: {
+                            question: 'Apakah yang berlaku kepada pemboleh ubah <b>kotor</b> dan <b>bersih</b> selepas pernyataan <b>return</b> selesai dan kawalan kembali ke main()?',
+                            options: [
+                                { text: 'Frame kiraBersih() dipadam (pop) dari Stack, jadi kotor dan bersih dimusnahkan.', correct: true },
+                                { text: 'kotor dan bersih akan automatik dipindahkan menjadi pemboleh ubah dalam main().', correct: false, misconception: 'Salah faham: Menyangka semua pemboleh ubah tempatan akan terpelihara dan kekal dalam main().' },
+                                { text: 'Pemboleh ubah tersebut kekal dalam memori selamanya sehingga program ditutup.', correct: false, misconception: 'Salah faham: Menyebabkan pembaziran memori kerana tidak memahami pembersihan automatik Call Stack.' }
